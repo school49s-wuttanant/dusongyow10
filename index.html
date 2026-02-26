@@ -34,6 +34,10 @@
         @media print {
             .no-print { display: none !important; }
         }
+
+        /* Modal Animation */
+        .modal-enter { opacity: 0; transform: scale(0.9); }
+        .modal-enter-active { opacity: 1; transform: scale(1); transition: all 0.3s ease-out; }
     </style>
 </head>
 <body class="p-4 md:p-8">
@@ -161,6 +165,42 @@
             </div>
         </div>
 
+        <!-- Summary Modal -->
+        <div id="summaryModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+            <div class="bg-white rounded-3xl max-w-md w-full overflow-hidden shadow-2xl modal-enter" id="modalContent">
+                <div class="bg-blue-600 p-6 text-white text-center">
+                    <div class="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                    </div>
+                    <h3 class="text-2xl font-bold" id="modalMainTitle">บันทึกสำเร็จ</h3>
+                    <p class="text-blue-100 opacity-80 mt-1">ข้อมูลถูกบันทึกลงในระบบเรียบร้อยแล้ว</p>
+                </div>
+                <div class="p-8 space-y-5">
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-start border-b border-slate-50 pb-3">
+                            <span class="text-slate-400 text-sm">เลขที่บันทึก</span>
+                            <span class="text-blue-700 font-bold text-right" id="resMemoId">-</span>
+                        </div>
+                        <div class="flex justify-between items-start border-b border-slate-50 pb-3">
+                            <span class="text-slate-400 text-sm">วันที่</span>
+                            <span class="text-slate-700 font-medium text-right" id="resDate">-</span>
+                        </div>
+                        <div class="flex justify-between items-start border-b border-slate-50 pb-3">
+                            <span class="text-slate-400 text-sm">เรื่อง</span>
+                            <span class="text-slate-700 font-medium text-right max-w-[200px]" id="resSubject">-</span>
+                        </div>
+                        <div class="flex justify-between items-start border-b border-slate-50 pb-3">
+                            <span class="text-slate-400 text-sm">ผู้รับผิดชอบ</span>
+                            <span class="text-slate-700 font-medium text-right" id="resResponsible">-</span>
+                        </div>
+                    </div>
+                    <button onclick="closeModal()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-2xl shadow-lg shadow-blue-100 transition-all active:scale-[0.98]">
+                        ตกลง
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <div class="mt-16 mb-12 text-center">
             <div class="inline-block px-6 py-2 bg-blue-100/50 rounded-full border border-blue-200">
                 <p class="text-blue-700 font-medium text-sm">จัดทำโดย นายวุฒนันท์ เจ๊ะดาโอะ</p>
@@ -176,30 +216,18 @@
         let currentRecords = [];
         let isEditMode = false;
 
-        // ฟังก์ชันช่วยจัดการวันที่ให้แสดงเป็น พ.ศ. เสมอ
         function formatThaiDate(dateInput) {
             if (!dateInput) return "-";
-            
             let dateObj;
-            if (dateInput instanceof Date) {
-                dateObj = dateInput;
-            } else if (typeof dateInput === 'string') {
-                // ตรวจสอบว่าเป็น ISO String หรือไม่
-                dateObj = new Date(dateInput);
-            }
-
+            if (dateInput instanceof Date) dateObj = dateInput;
+            else if (typeof dateInput === 'string') dateObj = new Date(dateInput);
             if (isNaN(dateObj.getTime())) return dateInput;
 
             const months = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
             const day = dateObj.getDate();
             const month = months[dateObj.getMonth()];
-            
-            // ดึงปี ค.ศ.
             let year = dateObj.getFullYear();
-            
-            // ป้องกันการบวกปีซ้ำซ้อน: ถ้าปีที่ได้มีค่ามากกว่า 2400 แสดงว่าเป็น พ.ศ. อยู่แล้ว
             let thaiYear = year < 2400 ? year + 543 : year;
-            
             return `${day} ${month} ${thaiYear}`;
         }
 
@@ -207,7 +235,6 @@
             const loader = document.getElementById('tableLoader');
             const errorView = document.getElementById('errorState');
             const emptyView = document.getElementById('emptyState');
-            
             loader.classList.remove('hidden');
             errorView.classList.add('hidden');
             emptyView.classList.add('hidden');
@@ -353,10 +380,7 @@
             document.getElementById('responsible').value = record.responsible;
             document.getElementById('note').value = record.note || '';
             
-            // แปลงวันที่กลับเป็นรูปแบบ input date (yyyy-mm-dd)
             if (record.date) {
-                const dateParts = record.date.split(' '); // สมมติถ้าเก็บเป็น "18 กุมภาพันธ์ 2569"
-                // แต่เพื่อความชัวร์ เราจะพยายามดึงจาก dateObj ถ้ามี
                 const d = new Date(record.date);
                 if (!isNaN(d.getTime())) {
                     document.getElementById('dateInput').value = d.toISOString().split('T')[0];
@@ -364,7 +388,6 @@
                 document.getElementById('displayDate').value = formatThaiDate(record.date);
                 document.getElementById('fullDateFormatted').value = formatThaiDate(record.date);
             }
-
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
@@ -405,6 +428,38 @@
             fetchDataFromSheet();
         };
 
+        function showSummary(data) {
+            document.getElementById('resMemoId').innerText = data.memoId;
+            document.getElementById('resDate').innerText = data.date;
+            document.getElementById('resSubject').innerText = data.subject;
+            document.getElementById('resResponsible').innerText = data.responsible;
+            document.getElementById('modalMainTitle').innerText = isEditMode ? "ปรับปรุงสำเร็จ" : "บันทึกสำเร็จ";
+            
+            const modal = document.getElementById('summaryModal');
+            const content = document.getElementById('modalContent');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                content.classList.remove('modal-enter');
+                content.classList.add('modal-enter-active');
+            }, 10);
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('summaryModal');
+            const content = document.getElementById('modalContent');
+            content.classList.add('modal-enter');
+            content.classList.remove('modal-enter-active');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                if (isEditMode) document.getElementById('cancelEditBtn').click();
+                else { 
+                    document.getElementById('memoForm').reset(); 
+                    setCurrentDate(); 
+                }
+                fetchDataFromSheet();
+            }, 300);
+        }
+
         document.getElementById('memoForm').onsubmit = async (e) => {
             e.preventDefault();
             const btn = document.getElementById('submitBtn');
@@ -421,17 +476,13 @@
 
             try {
                 await fetch(`${WEB_APP_URL}?${params.toString()}`, { method: 'POST', mode: 'no-cors' });
-                showStatus(isEditMode ? "ปรับปรุงสำเร็จ" : "บันทึกสำเร็จ", "success");
-                setTimeout(() => {
-                    if (isEditMode) document.getElementById('cancelEditBtn').click();
-                    else { e.target.reset(); setCurrentDate(); }
-                    fetchDataFromSheet();
-                    btn.disabled = false;
-                    document.getElementById('statusMsg').classList.add('hidden');
-                }, 1000);
+                showSummary(data);
+                btn.disabled = false;
+                btn.innerText = isEditMode ? "บันทึกการแก้ไข" : "บันทึกข้อมูล";
             } catch (error) {
                 showStatus("เกิดข้อผิดพลาด", "error");
                 btn.disabled = false;
+                btn.innerText = isEditMode ? "บันทึกการแก้ไข" : "บันทึกข้อมูล";
             }
         };
 
@@ -440,6 +491,7 @@
             s.innerText = msg;
             s.className = `p-3 rounded-xl text-center text-sm font-medium ${type === 'success' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`;
             s.classList.remove('hidden');
+            setTimeout(() => s.classList.add('hidden'), 3000);
         }
 
         document.getElementById('searchInput').addEventListener('input', filterAndRender);
